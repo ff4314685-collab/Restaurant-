@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<title>Aura Admin Panel</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --gold:#D4A843;--gold2:#F0C96A;--gold3:#9A7020;
+  --bg:#080808;--bg2:#101010;--bg3:#181818;--bg4:#202020;--bg5:#282828;
+  --text:#F4F0E8;--text2:#909088;--text3:#505048;
+  --red:#D94F4F;--green:#4BAF6E;--blue:#4A9EDF;--orange:#E8932A;
+  --border:rgba(255,255,255,0.07);--borderg:rgba(212,168,67,0.22);
+  --safe:env(safe-area-inset-bottom,0px);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;max-width:480px;margin:0 auto;min-height:100vh;-webkit-font-smoothing:antialiased}
+button,input{font-family:'DM Sans',sans-serif;border:none;outline:none}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bg5)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* LOGIN */
+#loginScreen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;z-index:100}
+.login-logo{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:700;letter-spacing:6px;background:linear-gradient(135deg,var(--gold2),var(--gold3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.login-sub{font-size:12px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-bottom:40px}
+.login-card{width:100%;background:var(--bg3);border:1px solid var(--borderg);border-radius:20px;padding:28px 22px}
+.login-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;margin-bottom:5px}
+.login-desc{font-size:12px;color:var(--text2);margin-bottom:22px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.field input{width:100%;background:var(--bg2);border:1.5px solid var(--border);border-radius:11px;padding:13px 14px;color:var(--text);font-size:14px;transition:border-color .2s}
+.field input:focus{border-color:var(--gold)}
+.field input::placeholder{color:var(--text3)}
+.login-err{background:rgba(217,79,79,.12);border:1px solid rgba(217,79,79,.3);border-radius:8px;padding:9px 13px;font-size:12px;color:var(--red);margin-bottom:13px;display:none;text-align:center}
+.login-err.show{display:block}
+.btn-login{width:100%;padding:14px;background:linear-gradient(135deg,var(--gold2),var(--gold),var(--gold3));color:#000;font-size:15px;font-weight:700;border-radius:11px;cursor:pointer;box-shadow:0 6px 22px rgba(212,168,67,.3);transition:all .2s;margin-top:4px}
+.btn-login:active{transform:scale(.98)}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:50;background:rgba(8,8,8,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 18px}
+.top-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;letter-spacing:2px;background:linear-gradient(135deg,var(--gold2),var(--gold3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.top-badge{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:50px;padding:5px 11px;font-size:11px;color:var(--text2)}
+.fb-dot{width:6px;height:6px;border-radius:50%;background:var(--red);transition:background .5s}
+.fb-dot.live{background:var(--green)}
+.btn-logout{background:rgba(217,79,79,.12);border:1px solid rgba(217,79,79,.25);color:var(--red);font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer}
+
+/* MAIN */
+#mainScreen{display:none;padding-bottom:calc(20px + var(--safe))}
+
+/* TABS */
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:58px;z-index:40}
+.tab{flex:1;padding:13px 8px;text-align:center;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.3px}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:16px;animation:fadeUp .4s ease}
+.stat-card.gold{border-color:var(--borderg)}
+.sc-icon{font-size:24px;margin-bottom:8px}
+.sc-val{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--gold);line-height:1}
+.sc-label{font-size:11px;color:var(--text3);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ORDERS */
+.orders-head{padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between}
+.orders-title{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700}
+.refresh-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:5px}
+.refresh-btn.spinning svg{animation:spin .8s linear infinite}
+
+/* Filter tabs */
+.filter-tabs{display:flex;gap:7px;padding:0 16px 12px;overflow-x:auto}
+.filter-tabs::-webkit-scrollbar{display:none}
+.ftab{flex-shrink:0;padding:6px 13px;border-radius:7px;font-size:12px;font-weight:500;background:transparent;border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:5px}
+.ftab.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700}
+.ftab-count{background:rgba(0,0,0,.2);border-radius:50px;padding:1px 6px;font-size:10px;font-weight:700}
+.ftab.active .ftab-count{background:rgba(0,0,0,.25)}
+
+/* Order card */
+.order-card{margin:0 16px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:18px;overflow:hidden;animation:slideIn .3s ease;transition:border-color .2s}
+.order-card.new-order{border-color:var(--gold);box-shadow:0 0 0 1px rgba(212,168,67,.2)}
+.oc-head{padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border)}
+.oc-id{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.5px;margin-bottom:3px}
+.oc-time{font-size:12px;color:var(--text2)}
+.oc-total{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--gold);text-align:right}
+.oc-delivery{font-size:11px;color:var(--green);text-align:right}
+.oc-items{padding:12px 16px;border-bottom:1px solid var(--border)}
+.oc-item{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.oc-item-name{color:var(--text)}
+.oc-item-qty{color:var(--text2);font-size:12px}
+/* Status badge */
+.status-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:50px;font-size:11px;font-weight:700;letter-spacing:.5px}
+.sb-placed{background:rgba(74,158,223,.15);color:var(--blue);border:1px solid rgba(74,158,223,.3)}
+.sb-preparing{background:rgba(232,147,42,.15);color:var(--orange);border:1px solid rgba(232,147,42,.3)}
+.sb-packed{background:rgba(212,168,67,.15);color:var(--gold);border:1px solid rgba(212,168,67,.3)}
+.sb-onway{background:rgba(75,175,110,.15);color:var(--green);border:1px solid rgba(75,175,110,.3)}
+.sb-delivered{background:rgba(75,175,110,.2);color:var(--green);border:1px solid rgba(75,175,110,.4)}
+/* Status update buttons */
+.oc-actions{padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.oc-status-row{display:flex;align-items:center;justify-content:space-between}
+.oc-status-label{font-size:12px;color:var(--text2);font-weight:500}
+.status-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.sbtn{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid transparent;transition:all .18s;letter-spacing:.3px}
+.sbtn:active{transform:scale(.95)}
+.sbtn-placed{background:rgba(74,158,223,.12);color:var(--blue);border-color:rgba(74,158,223,.3)}
+.sbtn-preparing{background:rgba(232,147,42,.12);color:var(--orange);border-color:rgba(232,147,42,.3)}
+.sbtn-packed{background:rgba(212,168,67,.12);color:var(--gold);border-color:rgba(212,168,67,.3)}
+.sbtn-onway{background:rgba(75,175,110,.12);color:var(--green);border-color:rgba(75,175,110,.3)}
+.sbtn-delivered{background:rgba(75,175,110,.2);color:var(--green);border-color:var(--green)}
+.sbtn.current{opacity:.4;pointer-events:none}
+/* WA notify btn */
+.btn-wa-notify{width:100%;padding:10px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;border:none;transition:all .2s}
+.btn-wa-notify:active{transform:scale(.97)}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-icon{font-size:52px;margin-bottom:14px}
+
+/* Loading */
+.loading{text-align:center;padding:40px 20px;color:var(--text2)}
+.load-ring{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+
+/* VIP Members */
+.vip-list{padding:0 16px}
+.vip-item{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;animation:fadeUp .3s ease}
+.vip-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold3),var(--bg5));border:1.5px solid var(--borderg);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:700;color:var(--gold);flex-shrink:0}
+.vip-phone{font-weight:600;font-size:14px}
+.vip-date{font-size:11px;color:var(--text3);margin-top:2px}
+.vip-wa{margin-left:auto;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.3);color:#25D366;font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+
+/* NEW ORDER notification */
+.new-order-notif{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--bg3);border:1px solid var(--gold);border-radius:14px;padding:12px 18px;z-index:200;opacity:0;pointer-events:none;transition:all .35s;box-shadow:0 8px 32px rgba(212,168,67,.3);white-space:nowrap;display:flex;align-items:center;gap:10px}
+.new-order-notif.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.non-icon{font-size:20px}
+.non-text{font-size:13px;font-weight:600}
+.non-sub{font-size:11px;color:var(--text2)}
+
+/* Toast */
+.toast{position:fixed;bottom:calc(20px + var(--safe));left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg4);border:1px solid var(--border);border-radius:50px;padding:10px 18px;font-size:13px;font-weight:500;z-index:300;opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap;max-width:92vw;box-shadow:0 8px 28px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- NEW ORDER NOTIFICATION -->
+<div class="new-order-notif" id="newOrderNotif">
+  <div class="non-icon">🔔</div>
+  <div><div class="non-text">Naya Order Aaya!</div><div class="non-sub" id="nonSub">₹0 ka order</div></div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-logo">AURA</div>
+  <div class="login-sub">Admin Panel</div>
+  <div class="login-card" style="animation:fadeUp .5s ease">
+    <div class="login-title">🔐 Admin Login</div>
+    <div class="login-desc">Sirf authorized admin hi enter kar sakte hain</div>
+    <div class="login-err" id="loginErr"></div>
+    <div class="field"><label>Password</label><input type="password" id="adminPass" placeholder="Admin password daalo" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
+    <button class="btn-login" onclick="doAdminLogin()">Enter Admin Panel 🚀</button>
+  </div>
+</div>
+
+<!-- MAIN SCREEN -->
+<div id="mainScreen">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="top-logo">AURA Admin</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="top-badge"><div class="fb-dot" id="fbDot"></div><span id="fbLabel">Connecting</span></div>
+      <button class="btn-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" id="tab-orders" onclick="switchTab('orders')">📦 Orders</div>
+    <div class="tab" id="tab-stats" onclick="switchTab('stats')">📊 Stats</div>
+    <div class="tab" id="tab-vip" onclick="switchTab('vip')">👑 VIP Members</div>
+  </div>
+
+  <!-- ORDERS TAB -->
+  <div id="panel-orders">
+    <div class="orders-head">
+      <div class="orders-title">Live Orders</div>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadOrders()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115-3.87M20 15a9 9 0 01-15 3.87"/></svg>
+        Refresh
+      </button>
+    </div>
+    <!-- Filter tabs -->
+    <div class="filter-tabs">
+      <div class="ftab active" id="ft-all" onclick="filterOrders('all')">🍽️ All <span class="ftab-count" id="fc-all">0</span></div>
+      <div class="ftab" id="ft-placed" onclick="filterOrders('placed')">✅ Placed <span class="ftab-count" id="fc-placed">0</span></div>
+      <div class="ftab" id="ft-preparing" onclick="filterOrders('preparing')">👨‍🍳 Preparing <span class="ftab-count" id="fc-preparing">0</span></div>
+      <div class="ftab" id="ft-onway" onclick="filterOrders('onway')">🛵 On Way <span class="ftab-count" id="fc-onway">0</span></div>
+      <div class="ftab" id="ft-delivered" onclick="filterOrders('delivered')">🏠 Delivered <span class="ftab-count" id="fc-delivered">0</span></div>
+    </div>
+    <div id="ordersList"><div class="loading"><div class="load-ring"></div>Orders load ho rahe hain...</div></div>
+  </div>
+
+  <!-- STATS TAB -->
+  <div id="panel-stats" style="display:none">
+    <div style="padding:16px 16px 8px"><div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700">Today's Summary</div></div>
+    <div class="stats-grid">
+      <div class="stat-card gold"><div class="sc-icon">💰</div><div class="sc-val" id="st-revenue">₹0</div><div class="sc-label">Total Revenue</div></div>
+      <div class="stat-card"><div class="sc-icon">📦</div><div class="sc-val" id="st-orders">0</div><div class="sc-label">Total Orders</div></div>
+      <div class="stat-card"><div class="sc-icon">🛵</div><div class="sc-val" id="st-delivered">0</div><div class="sc-label">Delivered</div></div>
+      <div class="stat-card"><div class="sc-icon">⏳</div><div class="sc-val" id="st-pending">0</div><div class="sc-label">Pending</div></div>
+      <div class="stat-card"><div class="sc-icon">🍚</div><div class="sc-val" id="st-topitem">—</div><div class="sc-label">Top Item</div></div>
+      <div class="stat-card"><div class="sc-icon">👑</div><div class="sc-val" id="st-vip">0</div><div class="sc-label">VIP Members</div></div>
+    </div>
+  </div>
+
+  <!-- VIP TAB -->
+  <div id="panel-vip" style="display:none">
+    <div style="padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700">VIP Members</div>
+      <span style="font-size:12px;color:var(--text3)" id="vipTotal">0 members</span>
+    </div>
+    <div class="vip-list" id="vipList"><div class="loading"><div class="load-ring"></div>Loading...</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ CONFIG ═══
+const FB_CFG = {
+  apiKey:"AIzaSyCg2HfzHFsF_b2-OfKY-p2CX5Kc0t7xq8Q",
+  authDomain:"fleeper-617bd.firebaseapp.com",
+  databaseURL:"https://fleeper-617bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"fleeper-617bd",
+  storageBucket:"fleeper-617bd.firebasestorage.app",
+  messagingSenderId:"520836139668",
+  appId:"1:520836139668:web:e1401d78ab001ef3cf4281"
+};
+const OWNER = "919852202315";
+const ADMIN_PASS = "aura2024"; // ← Admin password — change kar sakte ho
+
+const STATUS_INFO = {
+  placed:   {label:'Order Placed', emoji:'✅', cls:'sb-placed',   sbcls:'sbtn-placed'},
+  preparing:{label:'Preparing',    emoji:'👨‍🍳', cls:'sb-preparing', sbcls:'sbtn-preparing'},
+  packed:   {label:'Packed',       emoji:'📦', cls:'sb-packed',    sbcls:'sbtn-packed'},
+  onway:    {label:'On the Way',   emoji:'🛵', cls:'sb-onway',     sbcls:'sbtn-onway'},
+  delivered:{label:'Delivered',    emoji:'🏠', cls:'sb-delivered', sbcls:'sbtn-delivered'}
+};
+const STEP_ORDER = ['placed','preparing','packed','onway','delivered'];
+
+let db = null, allOrders = {}, activeFilter = 'all', isLoggedIn = false;
+
+// ═══ FIREBASE ═══
+function initFB(){
+  try{
+    if(typeof firebase==='undefined') return;
+    if(!firebase.apps.length) firebase.initializeApp(FB_CFG);
+    db = firebase.database();
+    db.ref('.info/connected').on('value', s => {
+      const on = s.val();
+      document.getElementById('fbDot').className = 'fb-dot' + (on?' live':'');
+      document.getElementById('fbLabel').textContent = on ? 'Live' : 'Offline';
+    });
+    // Live orders listener
+    db.ref('orders').on('value', snap => {
+      const prev = Object.keys(allOrders).length;
+      allOrders = snap.val() || {};
+      const curr = Object.keys(allOrders).length;
+      // New order notification
+      if(isLoggedIn && curr > prev && prev > 0){
+        const orders = Object.values(allOrders);
+        const newest = orders.sort((a,b) => b.timestamp - a.timestamp)[0];
+        showNewOrderNotif(newest);
+      }
+      renderOrders();
+      updateStats();
+      updateFilterCounts();
+    });
+    db.ref('vip_members').on('value', snap => {
+      renderVIP(snap.val() || {});
+    });
+  } catch(e){ console.error(e); }
+}
+
+// ═══ ADMIN LOGIN ═══
+function doAdminLogin(){
+  const pass = document.getElementById('adminPass').value;
+  if(pass === ADMIN_PASS){
+    isLoggedIn = true;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainScreen').style.display = 'block';
+    initFB();
+    loadOrders();
+  } else {
+    const err = document.getElementById('loginErr');
+    err.textContent = '❌ Password galat hai!';
+    err.classList.add('show');
+    setTimeout(() => err.classList.remove('show'), 3000);
+  }
+}
+function doLogout(){
+  isLoggedIn = false;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('adminPass').value = '';
+}
+
+// ═══ TABS ═══
+function switchTab(t){
+  ['orders','stats','vip'].forEach(x => {
+    document.getElementById('panel-'+x).style.display = x===t?'block':'none';
+    document.getElementById('tab-'+x).classList.toggle('active', x===t);
+  });
+}
+
+// ═══ LOAD ORDERS ═══
+function loadOrders(){
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  setTimeout(() => btn.classList.remove('spinning'), 800);
+  if(db) db.ref('orders').once('value').then(s => { allOrders = s.val() || {}; renderOrders(); updateStats(); updateFilterCounts(); });
+}
+
+// ═══ FILTER ═══
+function filterOrders(f){
+  activeFilter = f;
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  document.getElementById('ft-'+f).classList.add('active');
+  renderOrders();
+}
+
+function updateFilterCounts(){
+  const orders = Object.values(allOrders);
+  document.getElementById('fc-all').textContent = orders.length;
+  ['placed','preparing','packed','onway','delivered'].forEach(s => {
+    const el = document.getElementById('fc-'+s);
+    if(el) el.textContent = orders.filter(o => o.status === s).length;
+  });
+}
+
+// ═══ RENDER ORDERS ═══
+function renderOrders(){
+  const list = document.getElementById('ordersList');
+  let orders = Object.values(allOrders).sort((a,b) => b.timestamp - a.timestamp);
+  if(activeFilter !== 'all') orders = orders.filter(o => o.status === activeFilter);
+
+  if(!orders.length){
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">${activeFilter==='all'?'📭':'🎉'}</div><div style="font-weight:600;margin-bottom:4px">${activeFilter==='all'?'Abhi koi order nahi':'Is category mein koi order nahi'}</div><div style="font-size:12px;color:var(--text3)">Jab order aayega yahan dikhega</div></div>`;
+    return;
+  }
+
+  list.innerHTML = orders.map((o,i) => {
+    const si = STATUS_INFO[o.status] || STATUS_INFO.placed;
+    const time = new Date(o.timestamp).toLocaleString('hi-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const items = o.items ? Object.values(o.items) : [];
+    const isNew = (Date.now() - o.timestamp) < 300000; // 5 min
+    return `
+    <div class="order-card ${isNew && o.status==='placed' ? 'new-order':''}" id="oc-${o.orderId}" style="animation-delay:${i*.04}s">
+      <div class="oc-head">
+        <div>
+          <div class="oc-id">${o.orderId}</div>
+          <div class="oc-time">🕐 ${time}</div>
+          <div style="margin-top:6px"><span class="status-badge ${si.cls}">${si.emoji} ${si.label}</span></div>
+        </div>
+        <div>
+          <div class="oc-total">₹${o.tot||o.total||0}</div>
+          <div class="oc-delivery">${(o.del||o.delivery||0)===0?'🎉 Free Delivery':'Delivery: ₹'+(o.del||o.delivery||0)}</div>
+        </div>
+      </div>
+      <div class="oc-items">
+        ${items.map(it => `<div class="oc-item"><span class="oc-item-name">${it.name}</span><span class="oc-item-qty">×${it.qty} = ₹${it.qty*it.price}</span></div>`).join('')}
+      </div>
+      <div class="oc-actions">
+        <div class="oc-status-row">
+          <span class="oc-status-label">Status Update:</span>
+          <div class="status-btns">
+            ${STEP_ORDER.map(s => {
+              const si2 = STATUS_INFO[s];
+              return `<button class="sbtn ${si2.sbcls} ${o.status===s?'current':''}" onclick="updateOrderStatus('${o.orderId}','${s}')">${si2.emoji}</button>`;
+            }).join('')}
+          </div>
+        </div>
+        <button class="btn-wa-notify" onclick="sendWAUpdate('${o.orderId}','${o.status}','${o.tot||o.total||0}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+          Customer ko WhatsApp Update Bhejo
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══ UPDATE ORDER STATUS ═══
+function updateOrderStatus(orderId, newStatus){
+  if(!db){ showToast('❌ Firebase connected nahi hai'); return; }
+  db.ref('orders/'+orderId+'/status').set(newStatus).then(() => {
+    // Update local data
+    if(allOrders[orderId]) allOrders[orderId].status = newStatus;
+    renderOrders();
+    updateStats();
+    updateFilterCounts();
+    const si = STATUS_INFO[newStatus];
+    showToast(`${si.emoji} Order ${si.label} mark kiya!`);
+  }).catch(() => showToast('❌ Update failed!'));
+}
+
+// ═══ SEND WA UPDATE ═══
+function sendWAUpdate(orderId, status, total){
+  const si = STATUS_INFO[status] || STATUS_INFO.placed;
+  const msgs = {
+    placed:    `✅ Aapka order receive ho gaya!\n📋 Order ID: ${orderId}\n💰 Total: ₹${total}\n\nHum jaldi taiyar karenge! 🙏`,
+    preparing: `👨‍🍳 Aapka order ban raha hai!\n📋 Order ID: ${orderId}\n\nThoda wait karein, fresh ban raha hai! 😋`,
+    packed:    `📦 Aapka order pack ho gaya!\n📋 Order ID: ${orderId}\n\nBas delivery boy aa raha hai! 🛵`,
+    onway:     `🛵 Aapka order aa raha hai!\n📋 Order ID: ${orderId}\n\n20-25 minute mein pahunch jayega! ⚡`,
+    delivered: `🎉 Order deliver ho gaya!\n📋 Order ID: ${orderId}\n\nAapko kaisa laga? Dobara zaroor order karo! 😊\n\n— Aura Restaurant, Dhanbad 👑`
+  };
+  const msg = encodeURIComponent(`🍽️ *Aura Restaurant Update*\n\n${msgs[status]||''}`);
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
+  showToast('📱 WhatsApp message ready!');
+}
+
+// ═══ STATS ═══
+function updateStats(){
+  const orders = Object.values(allOrders);
+  const revenue = orders.reduce((s,o) => s + (o.tot||o.total||0), 0);
+  const delivered = orders.filter(o => o.status === 'delivered').length;
+  const pending = orders.filter(o => o.status !== 'delivered').length;
+
+  // Top item
+  const itemCount = {};
+  orders.forEach(o => {
+    if(o.items) Object.values(o.items).forEach(it => {
+      itemCount[it.name] = (itemCount[it.name]||0) + it.qty;
+    });
+  });
+  const topItem = Object.entries(itemCount).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('st-revenue').textContent = '₹'+revenue;
+  document.getElementById('st-orders').textContent = orders.length;
+  document.getElementById('st-delivered').textContent = delivered;
+  document.getElementById('st-pending').textContent = pending;
+  document.getElementById('st-topitem').textContent = topItem ? topItem[0].split(' ')[0] : '—';
+}
+
+// ═══ VIP ═══
+function renderVIP(vipData){
+  const list = document.getElementById('vipList');
+  const members = Object.values(vipData).sort((a,b) => b.joined - a.joined);
+  document.getElementById('vipTotal').textContent = members.length + ' members';
+  document.getElementById('st-vip').textContent = members.length;
+
+  if(!members.length){
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">👑</div><div style="font-weight:600">Abhi koi VIP member nahi</div></div>`;
+    return;
+  }
+  list.innerHTML = members.map((m,i) => {
+    const date = new Date(m.joined).toLocaleDateString('hi-IN',{day:'2-digit',month:'short',year:'numeric'});
+    return `<div class="vip-item" style="animation-delay:${i*.04}s">
+      <div class="vip-av">${m.phone?m.phone[0]:'V'}</div>
+      <div>
+        <div class="vip-phone">+91 ${m.phone||'—'}</div>
+        <div class="vip-date">Joined: ${date}</div>
+      </div>
+      <button class="vip-wa" onclick="window.open('https://wa.me/91${m.phone}','_blank')">Chat</button>
+    </div>`;
+  }).join('');
+}
+
+// ═══ NEW ORDER NOTIFICATION ═══
+function showNewOrderNotif(order){
+  const el = document.getElementById('newOrderNotif');
+  document.getElementById('nonSub').textContent = `₹${order.tot||order.total||0} ka naya order!`;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+  // Vibrate if supported
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+}
+
+// ═══ TOAST ═══
+let toastT;
+function showToast(m){
+  const t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Enter key login
+document.getElementById('adminPass').addEventListener('keydown', e => {
+  if(e.key === 'Enter') doAdminLogin();
+});
+</script>
+</body>
+</html>
